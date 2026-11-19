@@ -1,0 +1,40 @@
+name: Quality checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: mbstring, dom, xml, pdo_sqlite
+          tools: composer:v2
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install
+        run: |
+          composer install --prefer-dist --no-interaction --no-progress
+          cp .env.example .env
+          php artisan template:initialize --no-interaction
+          npm ci
+      - name: Validate and verify
+        run: |
+          composer validate --strict
+          composer check-platform-reqs
+          composer check
+      - name: Verify production caches
+        run: |
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
